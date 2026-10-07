@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PatchArena</title>
+<style>
+:root{--bg:#e8edf0;--panel:#f6f8f9;--ink:#16212b;--mute:#5d6e7b;--line:#c5d0d8;--pass:#0f7a64;--fail:#b8383b;--run:#3b6ea5}
+@media (prefers-color-scheme:dark){:root{--bg:#10171d;--panel:#18222a;--ink:#e6edf1;--mute:#8da0ad;--line:#2b3a45;--pass:#3fbf9f;--fail:#e0676a;--run:#6aa3dc}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Bricolage Grotesque","Segoe UI",system-ui,sans-serif}
+header{padding:20px 24px 8px;display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px}
+h1{margin:0;font-size:26px;letter-spacing:-.02em}
+header p{margin:0;color:var(--mute)}
+main{display:grid;grid-template-columns:320px 1fr;gap:16px;padding:12px 24px 32px}
+@media(max-width:860px){main{grid-template-columns:1fr}}
+section{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+h2{margin:0 0 10px;font-size:16px}
+label{display:block;font-size:13px;color:var(--mute);margin:10px 0 4px}
+select,textarea,button{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px}
+textarea{min-height:120px;resize:vertical}
+button{margin-top:12px;background:var(--ink);color:var(--bg);border:0;cursor:pointer;font-weight:600}
+button:disabled{opacity:.5;cursor:wait}
+button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--run);outline-offset:2px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.stats div{background:var(--bg);border-radius:8px;padding:8px}
+.stats b{display:block;font-size:20px}
+.stats span{font-size:12px;color:var(--mute)}
+#status{margin:0 0 12px;color:var(--mute)}
+.lane{display:grid;grid-template-columns:110px 1fr auto;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-left:5px solid var(--line);border-radius:8px;margin-bottom:8px;background:var(--bg)}
+.lane.run{border-left-color:var(--run)}
+.lane.fail{border-left-color:var(--fail)}
+.lane.pass{border-left-color:var(--pass)}
+.lane.winner{outline:2px solid var(--pass);background:color-mix(in srgb,var(--pass) 10%,var(--bg))}
+.lane b{display:block}
+.lane small{color:var(--mute)}
+.why{font-size:13px;color:var(--mute)}
+.lane.fail .why{color:var(--fail)}
+.lane.pass .why{color:var(--pass)}
+.pips{display:flex;gap:4px}
+.pip{width:46px;text-align:center;font-size:11px;padding:3px 0;border-radius:5px;background:var(--line);color:var(--mute)}
+.pip.ok{background:var(--pass);color:#fff}
+.pip.no{background:var(--fail);color:#fff}
+.pip.na{opacity:.45}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+@media(max-width:860px){.grid2{grid-template-columns:1fr}}
+pre{margin:0;max-height:300px;overflow:auto;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;background:var(--bg);border-radius:8px;padding:10px;white-space:pre-wrap}
+.empty{color:var(--mute)}
+@media(prefers-reduced-motion:no-preference){.lane{transition:border-color .25s,background .25s}}
+</style>
+</head>
+<body>
+<header>
+  <h1>PatchArena</h1>
+  <p>Many AI patches compete. Only a verified one becomes a PR.</p>
+</header>
+<main>
+  <section aria-label="Run settings">
+    <h2>Choose a vulnerable repo</h2>
+    <label for="sample">Sample repo</label>
+    <select id="sample"></select>
+    <label for="issue">Issue report</label>
+    <textarea id="issue"></textarea>
+    <button id="run">Run tournament</button>
+    <div class="stats" aria-live="polite">
+      <div><b id="m-tps">0</b><span>tokens/sec</span></div>
+      <div><b id="m-fly">0</b><span>in flight</span></div>
+      <div><b id="m-calls">0</b><span>model calls</span></div>
+    </div>
+  </section>
+  <div>
+    <section aria-label="Arena">
+      <h2>Arena</h2>
+      <p id="status">Pick a sample and run the tournament.</p>
+      <div id="lanes"></div>
+    </section>
+    <div class="grid2">
+      <section><h2>Reproduction test</h2><pre id="exploit" class="empty">Not written yet.</pre></section>
+      <section><h2>Pull request</h2><pre id="pr" class="empty">No verified patch yet.</pre></section>
+    </div>
+  </div>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const STAGES = [["applies", "runs"], ["exploit", "exploit"], ["suite", "suite"]];
+let es, poll;
+
+async function init() {
+  const samples = await (await fetch("/api/samples")).json();
+  $("#sample").innerHTML = samples.map(s => `<option value="${s.name}">${s.name}</option>`).join("");
+  const setIssue = () => { $("#issue").value = (samples.find(s => s.name === $("#sample").value) || {}).issue || ""; };
+  $("#sample").onchange = setIssue;
+  setIssue();
+}
+
+function lane(i, strategy) {
+  let el = $("#lane-" + i);
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "lane-" + i;
+    el.className = "lane run";
+    el.innerHTML = `<div><b>Candidate ${i}</b><small></small></div><div class="why">Writing patch</div><div class="pips">` +
+      STAGES.map(([, label]) => `<span class="pip na">${label}</span>`).join("") + `</div>`;
+    $("#lanes").appendChild(el);
+  }
+  if (strategy) el.querySelector("small").textContent = strategy;
+  return el;
+}
+
+function handle(ev) {
+  if (ev.type === "ingested") $("#status").textContent = `Read ${ev.files} files. Writing a reproduction test...`;
+  if (ev.type === "exploit_attempt") $("#status").textContent = `Writing a reproduction test (attempt ${ev.attempt})...`;
+  if (ev.type === "exploit_ready") {
+    $("#exploit").className = ""; $("#exploit").textContent = ev.source;
+    $("#status").textContent = "Reproduction test fails on the original code. Candidates racing...";
+  }
+  if (ev.type === "candidate_start") lane(ev.index, ev.strategy);
+  if (ev.type === "verdict") {
+    const el = lane(ev.index, ev.strategy);
+    el.className = "lane " + (ev.passed ? "pass" : "fail");
+    el.querySelector(".why").textContent = ev.reason + (ev.diff_lines ? ` (${ev.diff_lines} lines changed)` : "");
+    el.querySelectorAll(".pip").forEach((p, k) => {
+      const g = ev.gates[STAGES[k][0]];
+      p.className = "pip " + (g === true ? "ok" : g === false ? "no" : "na");
+    });
+  }
+  if (ev.type === "winner") {
+    $("#lane-" + ev.index).classList.add("winner");
+    $("#pr").className = ""; $("#pr").textContent = ev.pr;
+  }
+  if (ev.type === "done") {
+    const msg = { verified_pr: "Done. A verified patch is ready for review.",
+                  needs_human: "Done. No verified patch, so this needs a human: " + (ev.reason || ""),
+                  error: "Run failed: " + (ev.reason || "unknown error") };
+    $("#status").textContent = msg[ev.outcome] || "Done.";
+    $("#run").disabled = false; es.close(); clearInterval(poll);
+  }
+}
+
+async function metrics() {
+  const m = await (await fetch("/api/metrics")).json();
+  $("#m-tps").textContent = m.tokens_per_sec; $("#m-fly").textContent = m.inflight; $("#m-calls").textContent = m.calls;
+}
+
+$("#run").onclick = async () => {
+  $("#lanes").innerHTML = ""; $("#pr").textContent = "No verified patch yet."; $("#exploit").textContent = "Not written yet.";
+  $("#run").disabled = true; $("#status").textContent = "Reading the repo...";
+  const r = await fetch("/api/runs", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sample: $("#sample").value, issue: $("#issue").value }) });
+  const { id } = await r.json();
+  es = new EventSource(`/api/runs/${id}/events`);
+  es.onmessage = e => handle(JSON.parse(e.data));
+  poll = setInterval(metrics, 800);
+};
+init();
+</script>
+</body>
+</html>
