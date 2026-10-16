@@ -4,6 +4,10 @@ A security-patching agent that runs a tournament. Given a vulnerability report, 
 
 Built for the AMD Developer Hackathon: ACT III (lablab.ai).
 
+**Try the website prototype:** https://gleam-path-web.lovable.app
+
+It is a demo with sample data that shows how the tournament works, step by step.
+
 ## How it works
 
 1. **Ingest** the repo (source files first, tests after, within a context cap).

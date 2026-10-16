@@ -1,0 +1,19 @@
+# vLLM (ROCm) + PatchArena. Verify the vLLM image tag, entrypoint, and model fit on the AMD instance on Day 1.
+services:
+  vllm:
+    image: rocm/vllm:latest            # TODO: pin the tag recommended for your ROCm version
+    devices: ["/dev/kfd", "/dev/dri"]
+    group_add: ["video"]
+    ipc: host
+    cap_add: ["SYS_PTRACE"]
+    security_opt: ["seccomp=unconfined"]
+    command: ["vllm", "serve", "Qwen/Qwen2.5-Coder-32B-Instruct", "--port", "8000", "--max-model-len", "16384"]
+    ports: ["8000:8000"]
+  patcharena:
+    build: .
+    depends_on: [vllm]
+    environment:
+      LLM_BASE_URL: http://vllm:8000/v1
+      LLM_MODEL: Qwen/Qwen2.5-Coder-32B-Instruct
+      N_CANDIDATES: "8"
+    ports: ["8080:8080"]
