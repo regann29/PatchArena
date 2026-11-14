@@ -127,11 +127,18 @@ def test_find_fix_commits_skips_chore_messages_and_fixes_without_tests(tmp_path)
     git("commit", "-am", "Fix typo in return value")
 
     (repo / "app.py").write_text("def value():\n    return 2\n", encoding="utf-8")
-    git("commit", "-am", "Fix incorrect return")
+    (repo / "tests" / "test_app.py").write_text(
+        "from app import value\n\n\ndef test_value():\n    assert value() == 2\n",
+        encoding="utf-8",
+    )
+    git("commit", "-am", "Automated python-modernize fix")
 
     (repo / "app.py").write_text("def value():\n    return 3\n", encoding="utf-8")
+    git("commit", "-am", "Fix incorrect return")
+
+    (repo / "app.py").write_text("def value():\n    return 4\n", encoding="utf-8")
     (repo / "tests" / "test_app.py").write_text(
-        "from app import value\n\n\ndef test_value():\n    assert value() == 3\n",
+        "from app import value\n\n\ndef test_value():\n    assert value() == 4\n",
         encoding="utf-8",
     )
     git("commit", "-am", "Fix incorrect result")

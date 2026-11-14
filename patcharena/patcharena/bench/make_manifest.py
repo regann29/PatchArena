@@ -10,7 +10,7 @@ import subprocess
 from pathlib import Path
 
 SKIP_MESSAGE = re.compile(
-    r"\b(?:typo|spelling|lint|format\w*|docs?|ci|pre-commit|changelog)\b",
+    r"\b(?:typo|spelling|lint|format\w*|docs?|ci|pre-commit|changelog|automated|python-modernize)\b",
     re.IGNORECASE,
 )
 
