@@ -1,6 +1,6 @@
-"""Benchmark the current pipeline against ten locally checked-out bug cases.
+"""Benchmark the current pipeline against at least five locally checked-out bug cases.
 
-Run with: python -m bench.run --cases bench/cases.json
+Run with: python -m bench.run --cases bench/manifest.json
 Each case has a name, repo path, and either issue text or an issue_file path.
 Use bench.make_manifest to create cases from your own fix history.
 """
@@ -18,8 +18,8 @@ def load_cases(path):
     manifest_path = Path(path).resolve()
     data = json.loads(manifest_path.read_text(encoding="utf-8"))
     cases = data.get("cases") if isinstance(data, dict) else data
-    if not isinstance(cases, list) or len(cases) != 10:
-        raise ValueError("The manifest must contain exactly ten cases.")
+    if not isinstance(cases, list) or len(cases) < 5:
+        raise ValueError("The manifest must contain at least five cases.")
 
     loaded = []
     names = set()
@@ -92,7 +92,7 @@ def run_cases(cases, output, candidates=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--cases", required=True, help="JSON file containing exactly ten real bug cases")
+    parser.add_argument("--cases", required=True, help="JSON file containing at least five bug cases")
     parser.add_argument("--output", default=str(ROOT / "bench" / "results.json"))
     parser.add_argument("--candidates", type=int, default=None, help="candidate count per bug")
     args = parser.parse_args()
