@@ -58,7 +58,10 @@ def evaluate(repo, cand: Candidate, exploit_src: str) -> Verdict:
         r = sandbox.pytest(work, [config.EXPLOIT_PATH])
         v.gates["applies"] = r.returncode not in (2, 5, 124)
         if not v.gates["applies"]:
-            v.reason = "does not import or run (syntax or import error)"
+            if r.output.startswith("import isolation failed:"):
+                v.reason = r.output.splitlines()[0]
+            else:
+                v.reason = "does not import or run (syntax or import error)"
             return v
         v.gates["exploit"] = r.returncode == 0
         if not v.gates["exploit"]:

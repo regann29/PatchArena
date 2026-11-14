@@ -5,8 +5,14 @@ Rewrite generated issue files as user-reported symptoms before benchmarking.
 """
 import argparse
 import json
+import re
 import subprocess
 from pathlib import Path
+
+SKIP_MESSAGE = re.compile(
+    r"\b(?:typo|spelling|lint|format\w*|docs?|ci|pre-commit|changelog)\b",
+    re.IGNORECASE,
+)
 
 
 def git(repo, *args):
@@ -24,10 +30,10 @@ def git(repo, *args):
 def is_test(path):
     path = Path(path)
     return (
-        "tests" in path.parts
-        or path.name.startswith("test_")
-        or path.name.endswith("_test.py")
-        or path.name == "conftest.py"
+        "tests" in {part.lower() for part in path.parts}
+        or path.name.lower().startswith("test_")
+        or path.name.lower().endswith("_test.py")
+        or path.name.lower() == "conftest.py"
     )
 
 
@@ -42,13 +48,17 @@ def find_fix_commits(repo, limit):
     ).split()
     found = []
     for commit in commits:
+        message = git(repo, "show", "-s", "--format=%B", commit)
+        if SKIP_MESSAGE.search(message):
+            continue
         rows = [
             line.split("\t")
             for line in git(repo, "show", "--numstat", "--format=", commit).strip().splitlines()
         ]
         rows = [row for row in rows if len(row) == 3]
         source = [row for row in rows if row[2].endswith(".py") and not is_test(row[2])]
-        if not source or len(rows) > 4:
+        tests = [row for row in rows if is_test(row[2])]
+        if not source or not tests or len(rows) > 4:
             continue
         try:
             changed_lines = sum(int(row[0]) + int(row[1]) for row in source)
@@ -76,14 +86,16 @@ def create_manifest(repo, out, count=10):
         pass
     else:
         raise ValueError("The output folder must be outside the source repository.")
-    if count < 1:
-        raise ValueError("Count must be at least one.")
+    if count < 5:
+        raise ValueError("Count must be at least five.")
     if out.exists() and any(out.iterdir()):
         raise ValueError(f"Output folder must be empty: {out}")
 
     commits = find_fix_commits(repo, count)
-    if len(commits) != count:
-        raise ValueError(f"Found only {len(commits)} suitable fix commits; {count} requested.")
+    if len(commits) < 5:
+        raise ValueError(
+            f"Found only {len(commits)} suitable fix commits; at least five are required."
+        )
 
     out.mkdir(parents=True, exist_ok=True)
     cases, answers = [], {}
@@ -110,7 +122,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("repo", help="path to a local Python git repository")
     parser.add_argument("--out", required=True, help="empty folder for benchmark worktrees and files")
-    parser.add_argument("--count", type=int, default=10)
+    parser.add_argument("--count", type=int, default=10, help="maximum cases to create (minimum 5)")
     args = parser.parse_args()
     try:
         cases = create_manifest(args.repo, args.out, args.count)
@@ -118,7 +130,7 @@ def main():
         parser.error(str(error))
     print(f"Wrote {len(cases)} cases to {Path(args.out).resolve() / 'manifest.json'}")
     print("Rewrite each issue file as a user-reported symptom without revealing the fix.")
-    print("Confirm each worktree's tests run with pytest before benchmarking.")
+    print("Rewrite each issue file as a user-reported symptom before benchmarking.")
 
 
 if __name__ == "__main__":
