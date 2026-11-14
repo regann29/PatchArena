@@ -51,12 +51,17 @@ def _import_names(work):
     names = []
     for path in root.iterdir():
         if path.is_file():
-            if path.suffix == ".py" and path.stem != "__init__" and path.stem.isidentifier():
+            if (
+                path.suffix == ".py"
+                and path.stem.isidentifier()
+                and path.stem not in {"__init__", "conftest", "setup", "sitecustomize"}
+                and not path.stem.startswith("test_")
+            ):
                 names.append(path.stem)
         elif (
             path.is_dir()
             and path.name.isidentifier()
-            and path.name not in {"tests", "test", "docs"}
+            and path.name not in {"tests", "test", "docs", "examples"}
             and any(path.rglob("*.py"))
         ):
             names.append(path.name)
