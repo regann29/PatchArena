@@ -99,7 +99,10 @@ def verify_import_isolation(work):
             raise ImportIsolationError(f"import of {name!r} timed out") from error
         if result.returncode:
             lines = (result.stderr or result.stdout).splitlines()
-            detail = next((line.strip() for line in reversed(lines) if line.strip()), "process failed")
+            detail = next(
+                (line.strip() for line in reversed(lines) if line.strip()),
+                "process failed",
+            )
             raise ImportIsolationError(f"could not import {name!r}: {detail}")
         try:
             paths = json.loads(result.stdout.splitlines()[-1])

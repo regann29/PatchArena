@@ -180,6 +180,15 @@ def test_import_isolation_fails_if_import_resolves_outside_case(tmp_path, monkey
         sandbox.verify_import_isolation(work)
 
 
+def test_import_isolation_reports_case_import_errors(tmp_path):
+    source = tmp_path / "src" / "samplepkg"
+    source.mkdir(parents=True)
+    (source / "__init__.py").write_text("def broken(:\n", encoding="utf-8")
+
+    with pytest.raises(sandbox.ImportIsolationError, match="SyntaxError"):
+        sandbox.verify_import_isolation(tmp_path)
+
+
 def test_pytest_reports_import_isolation_failure(tmp_path, monkeypatch):
     monkeypatch.setattr(sandbox.config, "SANDBOX", "local")
 
