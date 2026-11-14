@@ -130,7 +130,6 @@ def main():
     except (OSError, RuntimeError, ValueError) as error:
         parser.error(str(error))
     print(f"Wrote {len(cases)} cases to {Path(args.out).resolve() / 'manifest.json'}")
-    print("Rewrite each issue file as a user-reported symptom without revealing the fix.")
     print("Rewrite each issue file as a user-reported symptom before benchmarking.")
 
 
