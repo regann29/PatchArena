@@ -54,7 +54,8 @@ def _import_names(work):
             if (
                 path.suffix == ".py"
                 and path.stem.isidentifier()
-                and path.stem not in {"__init__", "conftest", "setup", "sitecustomize"}
+                and path.stem
+                not in {"__init__", "conftest", "setup", "sitecustomize", "test", "tests"}
                 and not path.stem.startswith("test_")
             ):
                 names.append(path.stem)
