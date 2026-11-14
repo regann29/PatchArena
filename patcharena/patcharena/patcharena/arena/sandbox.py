@@ -98,7 +98,8 @@ def verify_import_isolation(work):
         except subprocess.TimeoutExpired as error:
             raise ImportIsolationError(f"import of {name!r} timed out") from error
         if result.returncode:
-            detail = (result.stderr or result.stdout).strip()
+            lines = (result.stderr or result.stdout).splitlines()
+            detail = next((line.strip() for line in reversed(lines) if line.strip()), "process failed")
             raise ImportIsolationError(f"could not import {name!r}: {detail}")
         try:
             paths = json.loads(result.stdout.splitlines()[-1])

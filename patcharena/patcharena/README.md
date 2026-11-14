@@ -33,9 +33,25 @@ All agent reasoning (exploit test, patches, PR summary) goes through that endpoi
 
 ## Sandbox
 
-- `SANDBOX=local` runs pytest in a temp directory. Use it only with the preloaded samples; it is not isolated.
+- `SANDBOX=local` runs pytest in a temp directory and puts that copy's `src/` and root ahead of installed packages on `PYTHONPATH`. Before pytest starts, it imports the copy's top-level Python modules and fails clearly if an import resolves outside the copy. This is not a security boundary.
 - `SANDBOX=docker` runs each candidate in a container with no network and memory/CPU limits. Build the image first: `docker build -t patcharena-sandbox sandbox/`.
 - The hosted demo only accepts preloaded samples. Arbitrary repos should use the Docker sandbox.
+
+## Building a baseline benchmark
+
+The builder looks through a local Python repository's history for small commits whose messages mention a fix, skip common chore terms, and change both Python source and a test file. It creates detached worktrees from before each fix. It makes at most ten cases and needs at least five eligible commits.
+
+```bash
+python -m bench.make_manifest C:\work\my-repo --out C:\work\patchcraft-bench --count 10
+```
+
+The generated issue files start from commit messages. Rewrite each as a user-reported symptom without revealing the fix, and check that its tests run in your Python environment. The answer key is separate from the case manifest.
+
+Before running a benchmark, the local sandbox verifies that each case imports its own code. Run it only with a real model endpoint configured; mock replies are rejected.
+
+```bash
+python -m bench.run --cases C:\work\patchcraft-bench\manifest.json
+```
 
 ## Layout
 
@@ -47,7 +63,7 @@ patcharena/
   pipeline.py, api.py, cli.py, llm.py, mock_llm.py, metrics.py
 dashboard/  live arena UI
 samples/    preloaded vulnerable repos (+ ISSUE.md)
-bench/      run.py -> results.json
+bench/      make_manifest.py, run.py -> results.json
 tests/
 ```
 
