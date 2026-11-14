@@ -82,7 +82,14 @@ def test_create_manifest_uses_detached_pre_fix_worktrees(tmp_path):
     assert json.loads((output / "answers.json").read_text(encoding="utf-8")) == {
         f"bug-{index}": commit
         for index, commit in enumerate(
-            git_output(repo, "log", "--no-merges", "--grep=fix", "--format=%H").splitlines(),
+        git_output(
+            repo,
+            "log",
+            "--no-merges",
+            "--regexp-ignore-case",
+            "--grep=fix",
+            "--format=%H",
+        ).splitlines(),
             start=1,
         )
     }

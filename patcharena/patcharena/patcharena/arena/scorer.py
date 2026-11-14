@@ -59,7 +59,7 @@ def evaluate(repo, cand: Candidate, exploit_src: str) -> Verdict:
         v.gates["applies"] = r.returncode not in (2, 5, 124)
         if not v.gates["applies"]:
             if r.output.startswith("import isolation failed:"):
-                v.reason = r.output.splitlines()[0]
+                v.reason = "does not import or run: " + r.output.splitlines()[0]
             else:
                 v.reason = "does not import or run (syntax or import error)"
             return v
