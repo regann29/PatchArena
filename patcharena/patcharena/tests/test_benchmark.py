@@ -71,7 +71,7 @@ def test_create_manifest_uses_detached_pre_fix_worktrees(tmp_path):
     assert len(cases) == 1
     assert "return None" in (output / "bug-1" / "app.py").read_text(encoding="utf-8")
     assert json.loads((output / "answers.json").read_text(encoding="utf-8")) == {
-        "bug-1": cases[0]["repo"] and git_output(repo, "rev-parse", "HEAD")
+        "bug-1": git_output(repo, "rev-parse", "HEAD")
     }
 
 
