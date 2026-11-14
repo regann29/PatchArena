@@ -2,6 +2,7 @@
 
 Run with: python -m bench.run --cases bench/cases.json
 Each case has a name, repo path, and either issue text or an issue_file path.
+Use bench.make_manifest to create cases from your own fix history.
 """
 import argparse
 import json
@@ -16,9 +17,9 @@ ROOT = Path(__file__).resolve().parent.parent
 def load_cases(path):
     manifest_path = Path(path).resolve()
     data = json.loads(manifest_path.read_text(encoding="utf-8"))
-    cases = data.get("cases") if isinstance(data, dict) else None
+    cases = data.get("cases") if isinstance(data, dict) else data
     if not isinstance(cases, list) or len(cases) != 10:
-        raise ValueError("The manifest must contain exactly ten cases in a 'cases' array.")
+        raise ValueError("The manifest must contain exactly ten cases.")
 
     loaded = []
     names = set()
