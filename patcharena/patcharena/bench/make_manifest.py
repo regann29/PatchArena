@@ -32,6 +32,7 @@ def is_test(path):
     return (
         "tests" in {part.lower() for part in path.parts}
         or path.name.lower().startswith("test_")
+        or path.name.lower() in {"test.py", "tests.py"}
         or path.name.lower().endswith("_test.py")
         or path.name.lower() == "conftest.py"
     )
